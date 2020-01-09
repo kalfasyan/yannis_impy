@@ -297,6 +297,8 @@ class ObjectDetectionDataset(object):
 												 "Only jpgs and pngs are allowed.")
 			# Extract name
 			filename = os.path.split(img)[1].split(extension)[0]
+			print(filename)
+			print(f'img:{img}')
 			# Create xml and img name
 			imgFullPath = os.path.join(self.imagesDirectory, filename + extension)
 			xmlFullPath = os.path.join(self.annotationsDirectory, filename + ".xml")

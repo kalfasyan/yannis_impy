@@ -102,3 +102,8 @@ ENV/
 tests/cars_dataset/annotations_*
 tests/cars_dataset/images_*
 tests/cars_dataset/bounding_boxes
+
+# yannis
+annotations/
+images/
+converted_labels/
