@@ -1,9 +1,5 @@
 <h1> Impy (Images in python) </h1>
 <p>Impy is a library used for deep learning projects that use image datasets.</p>
-<ul>
-  <li><strong>Email: </strong>lozuwaucb@gmail.com</li>
-  <li><strong>Bug reports: </strong>https://github.com/lozuwa/impy/issues</li>
-</ul>
 <p>It provides:</p>
 <ul>
   <li>Data augmentation methods for images with bounding boxes (the bounding boxes are also affected by the transformations so you don't have to label again.)</li>
