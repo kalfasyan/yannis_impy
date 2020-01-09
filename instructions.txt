@@ -1,0 +1,9 @@
+create 3 folders:
+1. annotations
+2. converted_labels
+3. images
+
+and save your images and annotations in the 
+right folders.
+
+yolo_to_voc will then save the "converted_labels"
