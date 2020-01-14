@@ -26,22 +26,24 @@
 import os
 import xml.etree.cElementTree as ET
 from PIL import Image
+import pandas as pd
 
-ANNOTATIONS_DIR_PREFIX = "annotations"
 
-DESTINATION_DIR = "converted_labels"
+data_dir = './created_data/'
 
-CLASS_MAPPING = {
-    '0': 'insects',
-#    '1': 'dog'
-    # Add your remaining classes here.
-}
+ANNOTATIONS_DIR_PREFIX = f"{data_dir}annotations/"
+IMAGES_DIR_PREFIX = f"{data_dir}images/"
+DESTINATION_DIR = f"{data_dir}converted_labels/"
 
+mapping = f'{data_dir}class_mapping.csv'
+mapdict = pd.read_csv(mapping, index_col='Unnamed: 0')[['class','class_encoded']].drop_duplicates().set_index('class_encoded').to_dict()['class']
+
+CLASS_MAPPING = {str(k):str(v) for k,v in mapdict.items()}
 
 def create_root(file_prefix, width, height):
     root = ET.Element("annotations")
     ET.SubElement(root, "filename").text = "{}.jpg".format(file_prefix)
-    ET.SubElement(root, "folder").text = "images"
+    ET.SubElement(root, "folder").text = IMAGES_DIR_PREFIX
     ET.SubElement(root, "path").text = os.getcwd() + '/' + "{}.jpg".format(file_prefix)
     size = ET.SubElement(root, "size")
     ET.SubElement(size, "width").text = str(width)
@@ -77,9 +79,9 @@ def read_file(file_path):
     if file_prefix != 'classes':
         image_file_name = "{}.jpg".format(file_prefix)
         print(image_file_name)
-        img = Image.open("{}/{}".format("images", image_file_name))
+        img = Image.open("{}/{}".format(IMAGES_DIR_PREFIX, image_file_name))
         w, h = img.size
-        with open('annotations/'+file_path, 'r') as file:
+        with open(ANNOTATIONS_DIR_PREFIX+file_path, 'r') as file:
             lines = file.readlines()
             voc_labels = []
             for line in lines:

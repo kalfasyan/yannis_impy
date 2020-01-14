@@ -8,6 +8,7 @@ import os
 import json
 import math
 import numpy as np
+import cv2
 # from interface import implements
 from tqdm import tqdm
 
@@ -279,13 +280,13 @@ class ObjectDetectionDataset(object):
 		if (outputDirectory == None):
 			raise ValueError("outputDirectory cannot be empty")
 		if (type(outputDirectory) != str):
-			raise TyperError("outputDirectory must be a string.")
+			raise TypeError("outputDirectory must be a string.")
 		if (not (os.path.isdir(outputDirectory))):
 			raise FileNotFoundError("outputDirectory's path does not exist: ".format(outputDirectory))
 		if (filterClasses == None):
 			filterClasses = []
 		if (type(filterClasses) != list):
-			raise TyperError("filterClasses must be of type list.")
+			raise TypeError("filterClasses must be of type list.")
 		# Local variables
 		images = [os.path.join(self.imagesDirectory, i) for i in os.listdir(self.imagesDirectory)]
 		# Logic
@@ -334,9 +335,14 @@ class ObjectDetectionDataset(object):
 						print(ix, iy, x, y)
 						raise Exception("Bounding box does not exist.")
 					# Save image.
-					Util.save_img(frame = frame[iy:y, ix:x, :],
-																						img_name = imgName,
-																						output_image_directory = outputDirectory)
+					savePath = f'{outputDirectory}/{name}/'
+					if not os.path.isdir(savePath):
+						os.mkdir(savePath)
+					# Util.save_img(frame = frame[iy:y, ix:x, :], 
+					# 				img_name = f'{savePath}{name}_{imgName}', 
+					# 				output_image_directory = outputDirectory)
+					img_array = frame[iy:y, ix:x, :]
+					cv2.imwrite(f'{savePath}/{name}_{imgName}', img_array)
 
 	# Reduce and data augmentation.
 	def reduceDatasetByRois(self, offset = None, outputImageDirectory = None, outputAnnotationDirectory = None):
@@ -576,7 +582,7 @@ class ObjectDetectionDataset(object):
 		if (threshold == None):
 			threshold = 0.5
 		if (type(threshold) != float):
-			raise TyperError("ERROR: threshold parameter must be of type float.")
+			raise TypeError("ERROR: threshold parameter must be of type float.")
 		if ((threshold > 1) or (threshold < 0)):
 			raise ValueError("ERROR: threshold paramater should be a number between" +\
 												" 0-1.")

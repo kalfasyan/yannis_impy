@@ -107,3 +107,4 @@ tests/cars_dataset/bounding_boxes
 annotations/
 images/
 converted_labels/
+insectrec/created_data/
