@@ -150,3 +150,5 @@ for p, platename in tqdm(enumerate(plates)):
 		incomplete_plates.append(platename)
 
 df_specs = pd.concat(all_specs, axis=0)
+
+os.system("python yolo_to_voc.py")
