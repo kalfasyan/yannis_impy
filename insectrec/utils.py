@@ -91,3 +91,47 @@ def analyze_img_info():
 	df['height'] = df[2].apply(lambda x: str(x).split('x')[0])
 	df['width'] = df[2].apply(lambda x: str(x).split('x')[1])
 	return df
+
+def clean_folder(folder):
+	import shutil
+	for filename in os.listdir(folder):
+		file_path = os.path.join(folder, filename)
+		try:
+			if os.path.isfile(file_path) or os.path.islink(file_path):
+				os.unlink(file_path)
+			elif os.path.isdir(file_path):
+				shutil.rmtree(file_path)
+		except Exception as e:
+			print('Failed to delete %s. Reason: %s' % (file_path, e))
+
+def get_plate_names(year='2019', base_dir=None):
+	import glob
+	if year == '2018':
+		raise NotImplementedError("Refactoring needed for working with 2018 data.")
+		# try:
+		# 	DATADIR = results_dir(year, week_nr=sys.argv[1], base_dir=base_dir) # given a week number, select the data
+		# 	plates = natsorted(glob.glob(DATADIR+'*.JPG'))
+		# 	specs = natsorted(glob.glob(DATADIR+'*.txt'))
+		# except:
+		# 	raise ValueError("No week number given (as sys.argv)")
+	elif year == '2019':
+		data_dirs = results_dir(year, base_dir=base_dir) # given a week number, select the data
+
+		# Find plates for all image types known to exist in our dirs
+		img_types = ('*.jpg','*.JPG','*.png') 
+		all_plates = []
+		for d in data_dirs:
+			for filetype in img_types:
+				all_plates.extend(glob.glob(d+'/'+filetype))
+		plates = pd.Series(natsorted([plate for plate in all_plates if not plate[:-4].endswith('overlay')]))
+		no_dupl_idx = pd.Series(plates).apply(lambda x: x.split('/')[-1][:-4]).drop_duplicates().index.values
+		plates = plates.loc[no_dupl_idx].tolist()
+
+		# # Find specifications text files
+		# specs = []
+		# for d in data_dirs:
+		# 	specs.extend(glob.glob(d+'/'+'*.txt'))
+		# specs = natsorted(specs)	
+	else:
+		raise ValueError("Wrong year given!")
+	return plates

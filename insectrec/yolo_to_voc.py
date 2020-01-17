@@ -27,13 +27,15 @@ import os
 import xml.etree.cElementTree as ET
 from PIL import Image
 import pandas as pd
+import git
+repo = git.Repo('.', search_parent_directories=True)
+created_data_path = f'{repo.working_tree_dir}/insectrec/created_data/'
 
-
-data_dir = './created_data/'
+data_dir = created_data_path
 
 ANNOTATIONS_DIR_PREFIX = f"{data_dir}annotations/"
 IMAGES_DIR_PREFIX = f"{data_dir}images/"
-DESTINATION_DIR = f"{data_dir}converted_labels/"
+DESTINATION_DIR = f"{data_dir}voc_annotations/"
 
 mapping = f'{data_dir}class_mapping.csv'
 mapdict = pd.read_csv(mapping, index_col='Unnamed: 0')[['class','class_encoded']].drop_duplicates().set_index('class_encoded').to_dict()['class']
