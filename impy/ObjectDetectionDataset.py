@@ -287,6 +287,8 @@ class ObjectDetectionDataset(object):
 			filterClasses = []
 		if (type(filterClasses) != list):
 			raise TypeError("filterClasses must be of type list.")
+
+		self.outputDirectory = outputDirectory
 		# Local variables
 		images = [os.path.join(self.imagesDirectory, i) for i in os.listdir(self.imagesDirectory)]
 		# Logic

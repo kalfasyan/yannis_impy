@@ -54,6 +54,8 @@ df_stats = pd.DataFrame(columns=['nr_nans','unique_insects','annotated'], index=
 all_specs = []
 
 annotated_plates, incomplete_plates = [], []
+# Extra pixels around the image to crop
+extra_pixels = 5
 
 # Loop through all plates and nested loop through all insects in the plates
 for p, platename in tqdm(enumerate(plates)):
@@ -115,8 +117,8 @@ for p, platename in tqdm(enumerate(plates)):
 		spec['width'] = np.abs(spec['Bounding Rect Left.1'] - spec['Bounding Rect Right.1']) 
 		spec['height'] = np.abs(spec['Bounding Rect Top.1'] - spec['Bounding Rect Bottom.1']) 
 		# Making extracted boxes squares (to avoid distortions in future resizing)
-		spec['yolo_width'] = pd.concat([spec['width'], spec['height']], axis=1).max(axis=1) / W
-		spec['yolo_height'] = pd.concat([spec['width'], spec['height']], axis=1).max(axis=1) / H
+		spec['yolo_width'] = pd.concat([spec['width'], spec['height']], axis=1).max(axis=1) / W + extra_pixels
+		spec['yolo_height'] = pd.concat([spec['width'], spec['height']], axis=1).max(axis=1) / H + extra_pixels
 
 		ann_full_new = os.path.join( path_annotations , f"{pname}.txt" )
 		img_full_new = os.path.join( path_images , pname ) + '.jpg'

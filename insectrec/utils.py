@@ -135,3 +135,48 @@ def get_plate_names(year='2019', base_dir=None):
 	else:
 		raise ValueError("Wrong year given!")
 	return plates
+
+def get_dataset(dataset='./insectrec/created_data/impy_crops_export/', img_dim=65, encode_labels=True):
+    from imutils import paths
+    from numpy import random
+    import cv2
+    from tensorflow.keras.preprocessing.image import img_to_array
+    from sklearn.model_selection import train_test_split    
+    
+    # initialize the data and labels
+    print(" loading images...")
+    data = []
+    labels = []
+
+    # grab the image paths and randomly shuffle them
+    imagePaths = sorted(list(paths.list_images(dataset)))
+    random.seed(42)
+    random.shuffle(imagePaths)
+
+    # loop over the input images
+    for imagePath in imagePaths:
+        # load the image, pre-process it, and store it in the data list
+        image = cv2.imread(imagePath)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image = cv2.resize(image, (img_dim, img_dim))
+        image = img_to_array(image)
+        data.append(image)
+
+        # extract the class label from the image path and update the
+        # labels list
+        label = imagePath.split(os.path.sep)[-2]
+        labels.append(label)
+
+    # scale the raw pixel intensities to the range [0, 1]
+    data = np.array(data, dtype="float") / 255.0
+
+    if encode_labels:
+        from sklearn.preprocessing import LabelEncoder
+        le = LabelEncoder()
+        labels = le.fit_transform(labels)
+
+    # partition the data into training and testing splits using 75% of
+    # the data for training and the remaining 25% for testing
+    (trainX, testX, trainY, testY) = train_test_split(data,
+        labels, test_size=0.2, random_state=42)
+    return trainX, testX, trainY, testY, labels
