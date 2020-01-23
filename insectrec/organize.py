@@ -16,13 +16,15 @@ path_annotations = f'{created_data_path}/annotations/'
 path_images = f'{created_data_path}/images/'
 path_voc_annotations = f'{created_data_path}/voc_annotations/'
 path_impy_crops_export = f'{created_data_path}/impy_crops_export/'
+path_images_augmented = f'{created_data_path}/images_augmented/'
 path_weights = f'{created_data_path}/weights/'
 path_logs = f'{created_data_path}/logs/'
 for path in [path_annotations, path_images, path_voc_annotations, 
-			path_impy_crops_export, path_weights, path_logs]:
+			path_impy_crops_export, path_weights, path_logs, path_images_augmented]:
 	if not os.path.isdir(path):
 		os.mkdir(path)	
 
+include_herent = True
 yolo_to_voc = True # In the end of the script, yolo annotations get converted to voc
 extract_boxes = True # Only works if above is true. Bounding boxes extracted and saved as images
 clean = True # Deleting previous data created here (i.e. except of logs and weights)
@@ -32,6 +34,7 @@ if clean:
 	clean_folder(path_images)
 	clean_folder(path_voc_annotations)
 	os.system(f'rm -rf {path_impy_crops_export}*')
+	os.system(f'rm -rf {path_images_augmented}*')
 
 # Get name data from the sticky plates (their names)
 year = '2019' #input("Choose year: \n")
@@ -55,10 +58,23 @@ all_specs = []
 
 annotated_plates, incomplete_plates = [], []
 # Extra pixels around the image to crop
-extra_pixels = 5
+extra_pixels = 12
+
+bad_plates = ['brainlal_w27_A_58_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160', 
+			'brainelal_8719_B_81_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160',
+			'kampen_w25_C_72_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160',
+			'kampen_w25_B_71_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160']
 
 # Loop through all plates and nested loop through all insects in the plates
 for p, platename in tqdm(enumerate(plates)):
+	# Skip very early plates from herent that were imaged with old Canon 
+	if not include_herent:
+		if platename.split('/')[-1].startswith('her'):
+			print("SKIPPING HERENT PLATE")
+			continue
+	if platename.split('/')[-1][:-4] in bad_plates:
+		print("SKIPPING BAD PLATE")
+		continue
 
 	pname = platename.split('/')[-1][:-4] # defining the platename
 	if 'empty' in pname:
@@ -114,11 +130,13 @@ for p, platename in tqdm(enumerate(plates)):
 		spec['yolo_class'] = spec['yolo_class'].astype(int)
 		spec['yolo_x'] = np.abs(spec['Bounding Rect Right.1'] - np.abs(spec['Bounding Rect Left.1'] - spec['Bounding Rect Right.1']) /2) / W
 		spec['yolo_y'] = np.abs(spec['Bounding Rect Bottom.1'] - np.abs(spec['Bounding Rect Top.1'] - spec['Bounding Rect Bottom.1']) /2) / H
-		spec['width'] = np.abs(spec['Bounding Rect Left.1'] - spec['Bounding Rect Right.1']) 
-		spec['height'] = np.abs(spec['Bounding Rect Top.1'] - spec['Bounding Rect Bottom.1']) 
+		spec['width'] = np.abs(spec['Bounding Rect Left.1'] - spec['Bounding Rect Right.1']) + extra_pixels
+		spec['height'] = np.abs(spec['Bounding Rect Top.1'] - spec['Bounding Rect Bottom.1']) + extra_pixels
+
 		# Making extracted boxes squares (to avoid distortions in future resizing)
-		spec['yolo_width'] = pd.concat([spec['width'], spec['height']], axis=1).max(axis=1) / W + extra_pixels
-		spec['yolo_height'] = pd.concat([spec['width'], spec['height']], axis=1).max(axis=1) / H + extra_pixels
+		spec['yolo_width'] = pd.concat([spec['width'], spec['height']], axis=1).max(axis=1) / W 
+		spec['yolo_height'] = pd.concat([spec['width'], spec['height']], axis=1).max(axis=1) / H
+
 
 		ann_full_new = os.path.join( path_annotations , f"{pname}.txt" )
 		img_full_new = os.path.join( path_images , pname ) + '.jpg'

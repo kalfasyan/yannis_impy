@@ -5,7 +5,7 @@ Description: Decomposes the information contained in an image
 annotation with the VOC format.
 """
 import os
-from interface import implements
+# from interface import implements
 import xml.etree.ElementTree as ET
 
 class ImageAnnotation(object):

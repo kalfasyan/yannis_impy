@@ -11,6 +11,8 @@ import numpy as np
 import cv2
 # from interface import implements
 from tqdm import tqdm
+from natsort import natsorted
+import pandas as pd
 
 try:
 	from .ObjectDetectionDatasetPreprocessMethods import *
@@ -291,6 +293,7 @@ class ObjectDetectionDataset(object):
 		self.outputDirectory = outputDirectory
 		# Local variables
 		images = [os.path.join(self.imagesDirectory, i) for i in os.listdir(self.imagesDirectory)]
+		images = natsorted(images)
 		# Logic
 		for img in tqdm(images):
 			# Get extension
@@ -304,6 +307,8 @@ class ObjectDetectionDataset(object):
 			print(f'img:{img}')
 			# Create xml and img name
 			imgFullPath = os.path.join(self.imagesDirectory, filename + extension)
+			plateName = imgFullPath.split('/')[-1][:-4]
+
 			xmlFullPath = os.path.join(self.annotationsDirectory, filename + ".xml")
 			# Load annotation.
 			annt = ImageAnnotation(path = xmlFullPath)
@@ -335,16 +340,19 @@ class ObjectDetectionDataset(object):
 							((x > frame.shape[1]) or (y > frame.shape[0]))):
 						print(img)
 						print(ix, iy, x, y)
-						raise Exception("Bounding box does not exist.")
-					# Save image.
-					savePath = f'{outputDirectory}/{name}/'
-					if not os.path.isdir(savePath):
-						os.mkdir(savePath)
-					# Util.save_img(frame = frame[iy:y, ix:x, :], 
-					# 				img_name = f'{savePath}{name}_{imgName}', 
-					# 				output_image_directory = outputDirectory)
-					img_array = frame[iy:y, ix:x, :]
-					cv2.imwrite(f'{savePath}/{name}_{imgName}', img_array)
+						print("ERROR")
+						# continue
+						# raise Exception("Bounding box does not exist.")
+					else:
+						# Save image.
+						savePath = f'{outputDirectory}/{name}/'
+						if not os.path.isdir(savePath):
+							os.mkdir(savePath)
+						# Util.save_img(frame = frame[iy:y, ix:x, :], 
+						# 				img_name = f'{savePath}{name}_{imgName}', 
+						# 				output_image_directory = outputDirectory)
+						img_array = frame[iy:y, ix:x, :]
+						cv2.imwrite(f'{savePath}/{plateName}_{name}_{imgName}', img_array)
 
 	# Reduce and data augmentation.
 	def reduceDatasetByRois(self, offset = None, outputImageDirectory = None, outputAnnotationDirectory = None):
