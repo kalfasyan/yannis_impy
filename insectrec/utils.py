@@ -236,22 +236,20 @@ def valid_generator(X_val, y_val, batch_size, nb_classes=6, img_dim=80):
 
             yield x_batch, y_batch
 
-def augment_trainset(X_train=None, y_train=None, y_train_text=None,aug_imgs_path=None, img_dim=80, nb_batches=100, batch_size=512):
+def augment_trainset(X_train=None, y_train=None, aug_imgs_path=None, img_dim=80, nb_batches=100, batch_size=512):
     from sklearn.preprocessing import LabelEncoder
     from sklearn.model_selection import train_test_split
     from tensorflow.keras.preprocessing.image import ImageDataGenerator
     import cv2
     import pandas as pd
-    from natsort import natsorted
 
     print(" loading images...")
     data = []
-    le = LabelEncoder()
-    le.fit(y_train_text)
 
-    imagePaths = natsorted(X_train.tolist())
+    imagePaths = X_train.tolist()
     np.random.seed(42)
     np.random.shuffle(imagePaths)
+    labels = []
     for imagePath in imagePaths:
         # load the image, pre-process it, and store it in the data list
         image = cv2.imread(imagePath)
@@ -259,11 +257,12 @@ def augment_trainset(X_train=None, y_train=None, y_train_text=None,aug_imgs_path
         image = cv2.resize(image, (img_dim, img_dim))
         image = img_to_array(image)
         data.append(image)
+        labels.append(imagePath.split('/')[-2])
 
     data = np.array(data, dtype="float") / 255.0
-    y = np.array(y_train.tolist(), dtype="float")
-
-    aug = ImageDataGenerator(rotation_range=90, 
+    
+    aug = ImageDataGenerator(
+                            rotation_range=90, 
                              width_shift_range=0.1,
                              height_shift_range=0.1, 
     #                          zoom_range=0.3, 
@@ -273,22 +272,20 @@ def augment_trainset(X_train=None, y_train=None, y_train_text=None,aug_imgs_path
     #                          zca_whitening=True,
                              fill_mode="nearest")
 
-    name_map = dict(zip(le.transform(le.classes_), le.classes_))
-
     rdm = np.random.randint(0,1e6)
-    for i in np.unique(y_train_text):
+    for i in np.unique(labels):
         if not os.path.isdir(f'{aug_imgs_path}/{i}'):
             os.mkdir(f'{aug_imgs_path}/{i}')
 
     aug.fit(data)
     batch_counter = 0
-    for X_batch, y_batch in aug.flow(data, y, batch_size=batch_size, seed=42):
+    for X_batch, y_batch in aug.flow(data, labels, batch_size=batch_size, seed=42):
         for i, mat in enumerate(X_batch):
 
             rdm = np.random.randint(0,1e6)
-            img_savepath = f'{aug_imgs_path}/{name_map[y_batch[i]]}/{name_map[y_batch[i]]}_{rdm}{i}.jpg'
+            img_savepath = f'{aug_imgs_path}/{y_batch[i]}/{y_batch[i]}_{rdm}{i}.jpg'
             img_mat = cv2.cvtColor(mat, cv2.COLOR_RGB2BGR)
-            cv2.imwrite(img_savepath, img_mat)
+            cv2.imwrite(img_savepath, img_mat *255.)
 
         batch_counter += 1
 
