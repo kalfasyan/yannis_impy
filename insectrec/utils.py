@@ -60,10 +60,13 @@ def export_labels_2019(dict_or_df='df', base_dir=None):
     import pandas as pd
     from sklearn.preprocessing import LabelEncoder
     xlsx_files = [fname for fname in glob.iglob(base_dir + '/**/*.xlsx', recursive=True)]
+    wanted_columns_set = set(['name plate', 'index', 'Index', 'Klasse', 'klasse'])
     df_labeldata = []
     for f in xlsx_files:
+        print(f)
         sub = pd.read_excel(f)
-        sub = sub[['name plate', 'index', 'Klasse']]
+        sub = sub[list(wanted_columns_set.intersection(sub.columns))]
+        break
         sub.rename(columns={'name plate': 'platename', 'Klasse': 'class', 'index': 'idx'}, inplace=True)
         df_labeldata.append(sub)
     df = pd.concat(df_labeldata, axis=0)
