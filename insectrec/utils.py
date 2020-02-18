@@ -68,9 +68,9 @@ def export_labels_2019(dict_or_df='df', base_dir=None):
         df_labeldata.append(sub)
     df = pd.concat(df_labeldata, axis=0)
     df['class'] = df['class'].apply(lambda x: str(x).replace(" ","").lower())
-    df['class'] = df['class'].apply(lambda x: str(x).replace("2",""))
-    df['class'] = df['class'].apply(lambda x: str(x).replace("3",""))
-    df['class'] = df['class'].apply(lambda x: str(x).replace("4",""))
+    # df['class'] = df['class'].apply(lambda x: str(x).replace("2",""))
+    # df['class'] = df['class'].apply(lambda x: str(x).replace("3",""))
+    # df['class'] = df['class'].apply(lambda x: str(x).replace("4",""))
     
     le = LabelEncoder()
     df['class_encoded'] = le.fit_transform(df['class'].tolist())
@@ -96,6 +96,9 @@ def analyze_img_info():
     return df
 
 def clean_folder(folder):
+    """
+    Function to clean a directory from all of its contents.
+    """
     import shutil
     for filename in os.listdir(folder):
         file_path = os.path.join(folder, filename)
@@ -243,7 +246,7 @@ def augment_trainset(X_train=None, y_train=None, aug_imgs_path=None, img_dim=80,
     import cv2
     import pandas as pd
 
-    print(" loading images...")
+    print(" Reading image data and assigning labels...")
     data = []
 
     imagePaths = X_train.tolist()
@@ -258,9 +261,9 @@ def augment_trainset(X_train=None, y_train=None, aug_imgs_path=None, img_dim=80,
         image = img_to_array(image)
         data.append(image)
         labels.append(imagePath.split('/')[-2])
-
+    print('Normalizing data by dividing by 255.')
     data = np.array(data, dtype="float") / 255.0
-    
+    print('Creating an ImageDataGenerator.')
     aug = ImageDataGenerator(
                             rotation_range=90, 
                              width_shift_range=0.1,
@@ -271,17 +274,18 @@ def augment_trainset(X_train=None, y_train=None, aug_imgs_path=None, img_dim=80,
                             #  brightness_range=[0.9,1.05],
     #                          zca_whitening=True,
                              fill_mode="nearest")
-
+    print('Creating directories for each class.')
     rdm = np.random.randint(0,1e6)
     for i in np.unique(labels):
         if not os.path.isdir(f'{aug_imgs_path}/{i}'):
             os.mkdir(f'{aug_imgs_path}/{i}')
-
+    print('Fitting data generator on data.')
     aug.fit(data)
+    print('Expanding dataset by using generator\'s flow method on data/labels.')
+    print(f'using batch_size of {batch_size}')
     batch_counter = 0
     for X_batch, y_batch in aug.flow(data, labels, batch_size=batch_size, seed=42):
         for i, mat in enumerate(X_batch):
-
             rdm = np.random.randint(0,1e6)
             img_savepath = f'{aug_imgs_path}/{y_batch[i]}/{y_batch[i]}_{rdm}{i}.jpg'
             img_mat = cv2.cvtColor(mat, cv2.COLOR_RGB2BGR)

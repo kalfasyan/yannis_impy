@@ -35,6 +35,8 @@ if clean:
 	clean_folder(path_voc_annotations)
 	os.system(f'rm -rf {path_impy_crops_export}*')
 	os.system(f'rm -rf {path_images_augmented}*')
+	os.system(f'rm {created_data_path}/df_*')
+	os.system(f'rm {created_data_path}/class_mapping.csv')
 
 # Get name data from the sticky plates (their names)
 year = '2019' #input("Choose year: \n")
@@ -60,10 +62,12 @@ annotated_plates, incomplete_plates = [], []
 # Extra pixels around the image to crop
 extra_pixels = 12
 
-bad_plates = ['brainlal_w27_A_58_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160', 
-			'brainelal_8719_B_81_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160',
-			'kampen_w25_C_72_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160',
-			'kampen_w25_B_71_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160']
+# Plates to ignore, since they were found to contain bad data (blurred/misclassified etc.)
+bad_plates = []
+			# ['brainlal_w27_A_58_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160', 
+			# 'brainelal_8719_B_81_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160',
+			# 'kampen_w25_C_72_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160',
+			# 'kampen_w25_B_71_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160']
 
 # Loop through all plates and nested loop through all insects in the plates
 for p, platename in tqdm(enumerate(plates)):
@@ -163,6 +167,7 @@ for p, platename in tqdm(enumerate(plates)):
 
 df_specs = pd.concat(all_specs, axis=0)
 
+# SAVING DATAFRAMES WITH STATISTICS REGARDING THE PLATES AND BOUNDING BOXES
 df_stats.to_csv(f'{created_data_path}/df_stats.csv')
 df_specs.to_csv(f'{created_data_path}/df_specs.csv')
 
