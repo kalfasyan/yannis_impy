@@ -103,8 +103,9 @@ for p, platename in tqdm(enumerate(plates)):
 	del tmp
 
 	# ADDING YOLO AND HUMAN-READABLE ANNOTATION TO COLUMNS
-	sub_map = class_map[class_map['platename'] == pname][['idx','class_encoded']].set_index('idx')
-	sub_map2 = class_map[class_map['platename'] == pname][['idx','class']].set_index('idx')
+	cmap = class_map[class_map['platename'] == pname].drop_duplicates(subset='idx', keep='first')
+	sub_map = cmap[['idx','class_encoded']].set_index('idx')
+	sub_map2 = cmap[['idx','class']].set_index('idx')
 	spec['yolo_class'] = sub_map
 	spec['normal_class'] = sub_map2
 

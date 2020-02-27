@@ -60,15 +60,18 @@ def export_labels_2019(dict_or_df='df', base_dir=None):
     import pandas as pd
     from sklearn.preprocessing import LabelEncoder
     xlsx_files = [fname for fname in glob.iglob(base_dir + '/**/*.xlsx', recursive=True)]
-    wanted_columns_set = set(['name plate', 'index', 'Index', 'Klasse', 'klasse'])
+    wanted_columns_set = set(['name plate', 'index', 'Klasse', 'klasse'])
     df_labeldata = []
     for f in xlsx_files:
-        print(f)
+        print(f'Processing annotation file: {f}')
         sub = pd.read_excel(f)
+        if f.endswith('W39.xlsx'):
+            break
         sub = sub[list(wanted_columns_set.intersection(sub.columns))]
-        break
-        sub.rename(columns={'name plate': 'platename', 'Klasse': 'class', 'index': 'idx'}, inplace=True)
+        sub.columns = map(str.lower, sub.columns)
+        sub.rename(columns={'name plate': 'platename', 'klasse': 'class', 'index': 'idx'}, inplace=True)
         df_labeldata.append(sub)
+        assert sub.shape[1] == 3, 'Check excel file columns.'        
     df = pd.concat(df_labeldata, axis=0)
     df['class'] = df['class'].apply(lambda x: str(x).replace(" ","").lower())
     # df['class'] = df['class'].apply(lambda x: str(x).replace("2",""))
