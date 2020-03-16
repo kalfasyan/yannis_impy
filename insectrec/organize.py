@@ -1,4 +1,6 @@
 import numpy as np
+seed = 42
+np.random.seed(seed)
 import pandas as pd
 import os, shutil
 import glob
@@ -60,7 +62,7 @@ all_specs = []
 
 annotated_plates, incomplete_plates = [], []
 # Extra pixels around the image to crop
-extra_pixels = 12
+extra_pixels = 20
 
 # Plates to ignore, since they were found to contain bad data (blurred/misclassified etc.)
 bad_plates = []
@@ -130,13 +132,14 @@ for p, platename in tqdm(enumerate(plates)):
 		print(f'Found annotated data: {condition1 and condition2} ----> COPYING IT')
 		annotated_plates.append(platename)
 		print(platename)
+		spec['pname'] = pname
 
 		spec['yolo_class'].fillna(0, inplace=True)
 		spec['yolo_class'] = spec['yolo_class'].astype(int)
 		spec['yolo_x'] = np.abs(spec['Bounding Rect Right.1'] - np.abs(spec['Bounding Rect Left.1'] - spec['Bounding Rect Right.1']) /2) / W
 		spec['yolo_y'] = np.abs(spec['Bounding Rect Bottom.1'] - np.abs(spec['Bounding Rect Top.1'] - spec['Bounding Rect Bottom.1']) /2) / H
-		spec['width'] = np.abs(spec['Bounding Rect Left.1'] - spec['Bounding Rect Right.1']) + extra_pixels
-		spec['height'] = np.abs(spec['Bounding Rect Top.1'] - spec['Bounding Rect Bottom.1']) + extra_pixels
+		spec['width'] = 150#np.abs(spec['Bounding Rect Left.1'] - spec['Bounding Rect Right.1']) + extra_pixels
+		spec['height'] = 150#np.abs(spec['Bounding Rect Top.1'] - spec['Bounding Rect Bottom.1']) + extra_pixels
 
 		# Making extracted boxes squares (to avoid distortions in future resizing)
 		spec['yolo_width'] = pd.concat([spec['width'], spec['height']], axis=1).max(axis=1) / W 
