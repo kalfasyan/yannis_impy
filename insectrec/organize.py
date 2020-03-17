@@ -43,7 +43,7 @@ if clean:
 # Get name data from the sticky plates (their names)
 year = '2019' #input("Choose year: \n")
 BASE_DATA_DIR = f"/home/kalfasyan/data/images/sticky_plates/{year}"
-assert year in ['2018','2019'], 'Wrong year given'
+assert year in ['2019'], 'Wrong year given'
 plates = get_plate_names(year, base_dir=BASE_DATA_DIR)
 
 # Create classes.txt for yolo annotations 
