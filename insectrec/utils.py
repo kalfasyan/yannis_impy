@@ -1,5 +1,7 @@
 import pandas as pd
 import numpy as np
+seed = 42
+np.random.seed(42)
 from natsort import natsorted
 import os
 import cv2
