@@ -2,16 +2,19 @@ import numpy as np
 seed = 42
 np.random.seed(seed)
 import pandas as pd
-import os, shutil
-import glob
+import os, shutil, glob, cv2, sys, argparse, git
 from natsort import natsorted
-import cv2
 from utils import clean_folder, get_plate_names, export_labels_2019, SAVE_DIR, read_plate
-import sys
 from tqdm import tqdm
-import git
 repo = git.Repo('.', search_parent_directories=True)
 created_data_path = f'{repo.working_tree_dir}/insectrec/created_data'
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--datadir", help="directory of sticky plate images")
+args = parser.parse_args()
+assert isinstance(args.datadir, str) and os.path.isdir(args.datadir), 'Provide a valid path'
+if not len(args.datadir): # /home/kalfasyan/data/images/sticky_plates/
+	raise ValueError("Please provide a datadir argument.")
 
 # CREATING NECESSARY DIRECTORIES FOR THE PROJECT
 path_annotations = f'{created_data_path}/annotations/'
@@ -41,8 +44,8 @@ if clean:
 	os.system(f'rm {created_data_path}/class_mapping.csv')
 
 # Get name data from the sticky plates (their names)
-year = '2019' #input("Choose year: \n")
-BASE_DATA_DIR = f"/home/kalfasyan/data/images/sticky_plates/{year}"
+BASE_DATA_DIR = f"{args.datadir}"
+year = args.datadir.split('/')[-2] if args.datadir.endswith('/') else args.datadir.split('/')[-2]
 assert year in ['2019'], 'Wrong year given'
 plates = get_plate_names(year, base_dir=BASE_DATA_DIR)
 
