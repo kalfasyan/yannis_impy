@@ -273,10 +273,10 @@ def augment_trainset(X_train=None, y_train=None, aug_imgs_path=None, img_dim=80,
     data = np.array(data, dtype="float") / 255.0
     print('Creating an ImageDataGenerator.')
     aug = ImageDataGenerator(
-                            rotation_range=90, 
+                            rotation_range=60, 
                              width_shift_range=0.1,
                              height_shift_range=0.1, 
-    #                          zoom_range=0.3, 
+                            #  zoom_range=0.2, 
                              horizontal_flip=True, 
                              vertical_flip=True, 
                             #  brightness_range=[0.9,1.05],
