@@ -12,8 +12,9 @@ from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard, EarlyStoppi
 from tensorflow.keras.applications.vgg16 import VGG16
 from tensorflow.keras.applications.inception_v3 import InceptionV3
 from tensorflow.keras.applications.densenet import DenseNet121, DenseNet201
+from tensorflow.keras.applications.inception_resnet_v2 import InceptionResNetV2
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import pandas as pd
 import cv2, os, os, git, glob, random
 import numpy as np
@@ -33,7 +34,7 @@ path_images_augmented = f'{created_data_path}/images_augmented/'
 if not os.path.isdir(path_images_augmented):
     os.mkdir(path)
     
-clean = True 
+clean = False 
 if clean:
     os.system(f'rm -rf {path_images_augmented}*')
 
@@ -42,8 +43,8 @@ batch_size = 32
 monitor='val_loss'
 es_patience=7
 rlr_patience=3
-img_dim = 120
-modelname = 'platebased_dense201'
+img_dim = 150
+modelname = 'platebased_nasnetlarge'
 
 
 # In[2]:
@@ -101,13 +102,13 @@ test_plates = ['beauv_8719_C_84_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160',
                'her_512719_14_30_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160',
                'kampen_w37_C_F10_51 mm_ISO160_1-15 s'
               ]
-plt.figure(figsize=(20,4))
-plt.subplot(121)
-ser.loc[test_plates].plot(style='.'); plt.xlabel('plates');plt.title('test plates selected - counts of target insect')
-print(f"nr of test plates: {ser.loc[test_plates].shape[0]}")
-plt.subplot(122)
-ser.plot(style='.'); plt.xlabel('plates'); plt.title('all plate counts')
-print(f"nr of all plates: {ser.shape[0]}")
+#plt.figure(figsize=(20,4))
+#plt.subplot(121)
+#ser.loc[test_plates].plot(style='.'); plt.xlabel('plates');plt.title('test plates selected - counts of target insect')
+#print(f"nr of test plates: {ser.loc[test_plates].shape[0]}")
+#plt.subplot(122)
+#ser.plot(style='.'); plt.xlabel('plates'); plt.title('all plate counts')
+#print(f"nr of all plates: {ser.shape[0]}")
 
 X_test = df_orig.x[df_orig.pname.isin(test_plates)]
 y_test = df_orig.y[df_orig.pname.isin(test_plates)]
@@ -137,12 +138,12 @@ X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.
 
 # In[6]:
 
-
-augment_trainset(X_train=X_train, y_train=y_train, 
-                 aug_imgs_path=path_images_augmented,
-                 img_dim=img_dim,
-                 nb_batches=100, 
-                 batch_size=500)
+if clean:
+    augment_trainset(X_train=X_train, y_train=y_train, 
+                    aug_imgs_path=path_images_augmented,
+                    img_dim=img_dim,
+                    nb_batches=100, 
+                    batch_size=500)
 
 
 # In[7]:
@@ -199,7 +200,7 @@ callbacks_list = [ModelCheckpoint(monitor =  monitor,
 # In[10]:
 
 
-base_model = DenseNet201(include_top=False, weights='imagenet', 
+base_model = InceptionResNetV2(include_top=False, weights='imagenet', 
                         input_shape=(img_dim,img_dim,3))
 x = base_model.output
 x = GlobalAveragePooling2D()(x)
