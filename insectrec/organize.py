@@ -119,7 +119,11 @@ for p, platename in tqdm(enumerate(plates)):
 	spec = spec[spec.normal_class != 'vuil'] # removing "vuil" class
 	spec = spec[spec.normal_class.apply(lambda x: '+' not in str(x))]
 	# SELECTING WANTED CLASSES
-	spec = spec[spec.normal_class.isin(['m','v','bl','c','wmv','v(cy)'])]
+	# spec = spec[spec.normal_class.isin(['m','v','bl','c','wmv','v(cy)'])]
+	# spec = spec[spec.normal_class.isin(['m','v','bl','c','wmv','v(cy)',
+	# 									'bv','gaasvlieg','grv','k','kever','nl','psylloidea','sp','sst','sw','t','vlieg','weg','wnv','wswl'])]
+	spec = spec[spec.normal_class.isin(['m','v','bl','c','wmv','v(cy)',
+										'bv','sw','t'])]
 
 	spec_nr_classes = spec['yolo_class'].unique().shape[0]
 	condition1 = (spec_nr_classes >= 1)
@@ -132,7 +136,7 @@ for p, platename in tqdm(enumerate(plates)):
 
 	# finding the annotated plates - i.e the ones that don't have all nans in 'class'
 	if condition1 and condition2 and condition3:
-		print(f'Found annotated data: {condition1 and condition2} ----> COPYING IT')
+		print(f'\nFound annotated data: {condition1 and condition2} ----> COPYING IT')
 		annotated_plates.append(platename)
 		print(platename)
 		spec['pname'] = pname

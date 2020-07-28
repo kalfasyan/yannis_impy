@@ -62,13 +62,15 @@ def export_labels_2019(dict_or_df='df', base_dir=None):
     import pandas as pd
     from sklearn.preprocessing import LabelEncoder
     xlsx_files = [fname for fname in glob.iglob(base_dir + '/**/*.xlsx', recursive=True)]
+    print(f'Found these excel annotation files: {xlsx_files}')
     wanted_columns_set = set(['name plate', 'index', 'Klasse', 'klasse'])
     df_labeldata = []
     for f in xlsx_files:
         print(f'Processing annotation file: {f}')
         sub = pd.read_excel(f)
-        if f.endswith('W39.xlsx'):
-            break
+        if f.endswith('w00.xlsx'):
+            print(f"Skipping file: {f}")
+            continue
         sub = sub[list(wanted_columns_set.intersection(sub.columns))]
         sub.columns = map(str.lower, sub.columns)
         sub.rename(columns={'name plate': 'platename', 'klasse': 'class', 'index': 'idx'}, inplace=True)
@@ -76,9 +78,9 @@ def export_labels_2019(dict_or_df='df', base_dir=None):
         assert sub.shape[1] == 3, 'Check excel file columns.'        
     df = pd.concat(df_labeldata, axis=0)
     df['class'] = df['class'].apply(lambda x: str(x).replace(" ","").lower())
-    # df['class'] = df['class'].apply(lambda x: str(x).replace("2",""))
-    # df['class'] = df['class'].apply(lambda x: str(x).replace("3",""))
-    # df['class'] = df['class'].apply(lambda x: str(x).replace("4",""))
+    df['class'] = df['class'].apply(lambda x: str(x).replace("2",""))
+    df['class'] = df['class'].apply(lambda x: str(x).replace("3",""))
+    df['class'] = df['class'].apply(lambda x: str(x).replace("4",""))
     
     le = LabelEncoder()
     df['class_encoded'] = le.fit_transform(df['class'].tolist())
