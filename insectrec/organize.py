@@ -33,6 +33,7 @@ include_herent = True
 yolo_to_voc = True # In the end of the script, yolo annotations get converted to voc
 extract_boxes = True # Only works if above is true. Bounding boxes extracted and saved as images
 clean = True # Deleting previous data created here (i.e. except of logs and weights)
+
 if clean:
 	print(f'Cleaning directories..')
 	clean_folder(path_annotations)
@@ -46,7 +47,7 @@ if clean:
 # Get name data from the sticky plates (their names)
 BASE_DATA_DIR = f"{args.datadir}"
 year = args.datadir.split('/')[-2] if args.datadir.endswith('/') else args.datadir.split('/')[-2]
-assert year in ['2019'], 'Wrong year given'
+assert year in ['2019','2020'], 'Wrong year given'
 plates = get_plate_names(year, base_dir=BASE_DATA_DIR)
 
 # Create classes.txt for yolo annotations 
@@ -69,10 +70,10 @@ extra_pixels = 20
 
 # Plates to ignore, since they were found to contain bad data (blurred/misclassified etc.)
 bad_plates = []
-			# ['brainlal_w27_A_58_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160', 
-			# 'brainelal_8719_B_81_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160',
-			# 'kampen_w25_C_72_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160',
-			# 'kampen_w25_B_71_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160']
+# "['brainlal_w27_A_58_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160', 
+# 			'brainelal_8719_B_81_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160',
+# 			'kampen_w25_C_72_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160',
+# 			'kampen_w25_B_71_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160']"
 
 # Loop through all plates and nested loop through all insects in the plates
 for p, platename in tqdm(enumerate(plates)):
@@ -122,8 +123,9 @@ for p, platename in tqdm(enumerate(plates)):
 	# spec = spec[spec.normal_class.isin(['m','v','bl','c','wmv','v(cy)'])]
 	# spec = spec[spec.normal_class.isin(['m','v','bl','c','wmv','v(cy)',
 	# 									'bv','gaasvlieg','grv','k','kever','nl','psylloidea','sp','sst','sw','t','vlieg','weg','wnv','wswl'])]
-	spec = spec[spec.normal_class.isin(['m','v','bl','c','wmv','v(cy)',
-										'bv','sw','t'])]
+	# spec = spec[spec.normal_class.isin(['m','v','bl','c','wmv','v(cy)',
+	# 									'bv','sw','t'])]
+	spec = spec[spec.normal_class.isin(['m','v','c','wmv','v(cy)','t'])]
 
 	spec_nr_classes = spec['yolo_class'].unique().shape[0]
 	condition1 = (spec_nr_classes >= 1)

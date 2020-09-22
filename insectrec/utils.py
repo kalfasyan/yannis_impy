@@ -28,7 +28,7 @@ def results_dir(year, week_nr=None, base_dir=None, week_folders=week_folders):
         results_dir = os.path.join(base_dir, week, results) # full results directory to return
         assert len(results_dir), "No results dir found!"
         return results_dir 
-    elif year == '2019':
+    elif year in ['2019','2020']:
         results_dir = []
         mydirs = [os.path.join(base_dir, f) for f in natsorted(os.listdir(base_dir))]
         for m in mydirs:
@@ -78,9 +78,9 @@ def export_labels_2019(dict_or_df='df', base_dir=None):
         assert sub.shape[1] == 3, 'Check excel file columns.'        
     df = pd.concat(df_labeldata, axis=0)
     df['class'] = df['class'].apply(lambda x: str(x).replace(" ","").lower())
-    df['class'] = df['class'].apply(lambda x: str(x).replace("2",""))
-    df['class'] = df['class'].apply(lambda x: str(x).replace("3",""))
-    df['class'] = df['class'].apply(lambda x: str(x).replace("4",""))
+    # df['class'] = df['class'].apply(lambda x: str(x).replace("2",""))
+    # df['class'] = df['class'].apply(lambda x: str(x).replace("3",""))
+    # df['class'] = df['class'].apply(lambda x: str(x).replace("4",""))
     
     le = LabelEncoder()
     df['class_encoded'] = le.fit_transform(df['class'].tolist())
@@ -130,7 +130,7 @@ def get_plate_names(year='2019', base_dir=None):
         # 	specs = natsorted(glob.glob(DATADIR+'*.txt'))
         # except:
         # 	raise ValueError("No week number given (as sys.argv)")
-    elif year == '2019':
+    elif year in ['2019', '2020']:
         data_dirs = results_dir(year, base_dir=base_dir) # given a week number, select the data
 
         # Find plates for all image types known to exist in our dirs
