@@ -27,9 +27,8 @@ import os
 import xml.etree.cElementTree as ET
 from PIL import Image
 import pandas as pd
-import git
-repo = git.Repo('.', search_parent_directories=True)
-created_data_path = f'{repo.working_tree_dir}/insectrec/created_data/'
+
+created_data_path = "/home/kalfasyan/data/images/sticky_plates/created_data/"
 
 data_dir = created_data_path
 

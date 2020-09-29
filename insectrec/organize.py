@@ -2,30 +2,32 @@ import numpy as np
 seed = 42
 np.random.seed(seed)
 import pandas as pd
-import os, shutil, glob, cv2, sys, argparse, git
+import os, shutil, glob, cv2, sys, argparse
 from natsort import natsorted
-from utils import clean_folder, get_plate_names, export_labels_2019, SAVE_DIR, read_plate
+from utils import clean_folder, get_plate_names, export_labels, SAVE_DIR, read_plate, save_insect_crops
 from tqdm import tqdm
-repo = git.Repo('.', search_parent_directories=True)
-created_data_path = f'{repo.working_tree_dir}/insectrec/created_data'
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--datadir", help="directory of sticky plate images")
+parser.add_argument('--years', nargs='+')
+
 args = parser.parse_args()
 assert isinstance(args.datadir, str) and os.path.isdir(args.datadir), 'Provide a valid path'
 if not len(args.datadir): # /home/kalfasyan/data/images/sticky_plates/
 	raise ValueError("Please provide a datadir argument.")
 
+created_data_path = f'{args.datadir}/created_data'
+
 # CREATING NECESSARY DIRECTORIES FOR THE PROJECT
 path_annotations = f'{created_data_path}/annotations/'
 path_images = f'{created_data_path}/images/'
 path_voc_annotations = f'{created_data_path}/voc_annotations/'
-path_impy_crops_export = f'{created_data_path}/impy_crops_export/'
+path_crops_export = f'{created_data_path}/crops_export/'
 path_images_augmented = f'{created_data_path}/images_augmented/'
 path_weights = f'{created_data_path}/weights/'
 path_logs = f'{created_data_path}/logs/'
-for path in [path_annotations, path_images, path_voc_annotations, 
-			path_impy_crops_export, path_weights, path_logs, path_images_augmented]:
+for path in [created_data_path, path_annotations, path_images, path_voc_annotations, 
+			path_crops_export, path_weights, path_logs, path_images_augmented]:
 	if not os.path.isdir(path):
 		os.mkdir(path)	
 
@@ -33,27 +35,35 @@ include_herent = True
 yolo_to_voc = True # In the end of the script, yolo annotations get converted to voc
 extract_boxes = True # Only works if above is true. Bounding boxes extracted and saved as images
 clean = True # Deleting previous data created here (i.e. except of logs and weights)
+save_extractions = False # Whether to save the extracted insect crops 
 
 if clean:
 	print(f'Cleaning directories..')
 	clean_folder(path_annotations)
 	clean_folder(path_images)
 	clean_folder(path_voc_annotations)
-	os.system(f'rm -rf {path_impy_crops_export}*')
+	os.system(f'rm -rf {path_crops_export}*')
 	os.system(f'rm -rf {path_images_augmented}*')
 	os.system(f'rm {created_data_path}/df_*')
 	os.system(f'rm {created_data_path}/class_mapping.csv')
 
 # Get name data from the sticky plates (their names)
 BASE_DATA_DIR = f"{args.datadir}"
-year = args.datadir.split('/')[-2] if args.datadir.endswith('/') else args.datadir.split('/')[-2]
-assert year in ['2019','2020'], 'Wrong year given'
-plates = get_plate_names(year, base_dir=BASE_DATA_DIR)
+years = args.years
+assert all([y in ['2019','2020'] for y in years]), 'Wrong year given or in wrong format.'
+plates = []
+for y in years:
+	y_plates = get_plate_names(y, base_dir=BASE_DATA_DIR)
+	plates += y_plates
+	print(f"Number of plates: {len(y_plates)} for year: {y}")
 
-# Create classes.txt for yolo annotations 
-# and a class_mapping.csv with the human readable labels
-export_labels_2019(base_dir=SAVE_DIR)
-class_map = pd.read_csv('created_data/class_mapping.csv')
+	# Create classes.txt for yolo annotations 
+	# and a class_mapping.csv with the human readable labels
+
+print(f"Number of ALL plates: {len(plates)}")
+
+export_labels(created_data_dir=created_data_path, years=years)
+class_map = pd.read_csv(f'{created_data_path}/class_mapping.csv')
 assert len(class_map), "Couldn't read class mapping"
 sub = class_map[['class', 'class_encoded']].drop_duplicates()
 nan_code = sub[sub['class'].isnull()]['class_encoded'].iloc[0]
@@ -65,8 +75,6 @@ df_stats = pd.DataFrame(columns=['nr_nans','unique_insects','annotated'], index=
 all_specs = []
 
 annotated_plates, incomplete_plates = [], []
-# Extra pixels around the image to crop
-extra_pixels = 20
 
 # Plates to ignore, since they were found to contain bad data (blurred/misclassified etc.)
 bad_plates = []
@@ -75,124 +83,127 @@ bad_plates = []
 # 			'kampen_w25_C_72_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160',
 # 			'kampen_w25_B_71_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160']"
 
+labview_cols = ['Center of Mass X.1', 'Center of Mass Y.1', 'Bounding Rect Left.1',
+       'Bounding Rect Top.1', 'Bounding Rect Right.1',
+       'Bounding Rect Bottom.1', 'Equivalent Ellipse Major Axis.1',
+       'Equivalent Ellipse Minor Axis.1', 'Area.1', 'Convex Hull Area.1',
+       'Orientation.1', 'Ratio of Equivalent Ellipse Axes.1',
+       'Ratio of Equivalent Rect Sides.1', 'Elongation Factor.1',
+       'Compactness Factor.1', 'Heywood Circularity Factor.1', 'Type Factor.1',
+       'R', 'G', 'B']
+
 # Loop through all plates and nested loop through all insects in the plates
 for p, platename in tqdm(enumerate(plates)):
-	# Skip very early plates from herent that were imaged with old Canon 
-	if not include_herent:
-		if platename.split('/')[-1].startswith('her'):
-			print("SKIPPING HERENT PLATE")
-			continue
-	if platename.split('/')[-1][:-4] in bad_plates:
-		print("SKIPPING BAD PLATE")
-		continue
+    # Skip very early plates from herent that were imaged with old Canon 
+    if not include_herent:
+        if platename.split('/')[-1].startswith('her'):
+            print("SKIPPING HERENT PLATE")
+            continue
+    if platename.split('/')[-1][:-4] in bad_plates:
+        print("SKIPPING BAD PLATE")
+        continue
 
-	pname = platename.split('/')[-1][:-4] # defining the platename
-	if 'empty' in pname:
-		continue
-	plate_img = read_plate(platename) # reading the plate image
+    # Defining the platename
+    pname = platename.split('/')[-1][:-4] 
+    if 'empty' in pname:
+        continue
 
-	H,W,_ = plate_img.shape
+    # Reading the plate image
+    plate_img = read_plate(platename) 
+    H,W,_ = plate_img.shape
 
-	spec = pd.read_csv(plates[p][:-4] + '.txt', sep="\t") # reading the specifications of the plate
+    # Reading the specifications of the plate
+    spec = pd.read_csv(plates[p][:-4] + '.txt', sep="\t") 
+    # Fetching column names (only needed once)
+    if p == 0: 
+        columns = [ii for ii in spec.columns if ii.endswith('.1')]
+        colextensions = ['index', 'name plate', 'R','G','B']
+        columns.extend(colextensions) # adding extra columns
+    spec = spec[columns]
+    spec.rename(columns={'index': 'insect_idx'}, inplace=True)
+    spec.dropna(axis=0, how='any', inplace=True)
 
-	if p == 0: # fetching column names (only once needed)
-		columns = [ii for ii in spec.columns if ii.endswith('.1')]
-		colextensions = ['index', 'name plate', 'R','G','B']
-		columns.extend(colextensions) # adding extra columns
+    # ADDING YOLO AND HUMAN-READABLE ANNOTATION TO COLUMNS
+    cmap = class_map[class_map['platename'] == pname].drop_duplicates(subset='idx', keep='first')
+    sub_map = cmap[['idx','class_encoded']].set_index('idx')
+    sub_map2 = cmap[['idx','class']].set_index('idx')
+    spec['yolo_class'] = sub_map
+    spec['normal_class'] = sub_map2
 
-	spec = spec[columns]
-	spec.dropna(axis=0, how='any', inplace=True) # cleaning up
+    # REMOVING UNWANTED CLASSES 
+    spec = spec[spec.normal_class != 'st'] # removing "stuk" class
+    spec = spec[spec.normal_class != 'vuil'] # removing "vuil" class
+    spec = spec[spec.normal_class.apply(lambda x: '+' not in str(x))]
+    # SELECTING WANTED CLASSES
+    wanted_classes = ['m','v','bl','c','wmv','v(cy)','bv','sw','t']
+    # ['m','v','bl','c','wmv','v(cy)']
+    # ['m','v','c','wmv','v(cy)','t']
+    # ['m','v','bl','c','wmv','v(cy)','bv','gaasvlieg','grv','k','kever','nl','psylloidea','sp','sst','sw','t','vlieg','weg','wnv','wswl']
+    spec = spec[spec.normal_class.isin(wanted_classes)]
 
-	# REPLACING COMMAS WITH DOTS
-	tmp = [spec[col].str.replace(',','.').astype(float) for col in columns if col not in colextensions]
-	spec = pd.concat(tmp, axis=1) # changing type to float
-	del tmp
+    # Replacing commas from labview columns with dots
+    for col in labview_cols:
+        spec[col] = spec[col].str.replace(",",".").astype(float)
 
-	# ADDING YOLO AND HUMAN-READABLE ANNOTATION TO COLUMNS
-	cmap = class_map[class_map['platename'] == pname].drop_duplicates(subset='idx', keep='first')
-	sub_map = cmap[['idx','class_encoded']].set_index('idx')
-	sub_map2 = cmap[['idx','class']].set_index('idx')
-	spec['yolo_class'] = sub_map
-	spec['normal_class'] = sub_map2
+    spec_nr_classes = spec['yolo_class'].unique().shape[0]
+    condition1 = (spec_nr_classes >= 0)
+    condition2 = True # (spec['yolo_class'].unique()[0] not in [nan_code, np.nan])
+    condition3 = (spec['yolo_class'].isnull().sum() != spec['yolo_class'].shape[0])
 
-	# REMOVING UNWANTED CLASSES 
-	spec = spec[spec.normal_class != 'st'] # removing "stuk" class
-	spec = spec[spec.normal_class != 'vuil'] # removing "vuil" class
-	spec = spec[spec.normal_class.apply(lambda x: '+' not in str(x))]
-	# SELECTING WANTED CLASSES
-	# spec = spec[spec.normal_class.isin(['m','v','bl','c','wmv','v(cy)'])]
-	# spec = spec[spec.normal_class.isin(['m','v','bl','c','wmv','v(cy)',
-	# 									'bv','gaasvlieg','grv','k','kever','nl','psylloidea','sp','sst','sw','t','vlieg','weg','wnv','wswl'])]
-	# spec = spec[spec.normal_class.isin(['m','v','bl','c','wmv','v(cy)',
-	# 									'bv','sw','t'])]
-	spec = spec[spec.normal_class.isin(['m','v','c','wmv','v(cy)','t'])]
+    df_stats.loc[pname] = pd.Series({'nr_nans': spec[spec['yolo_class'] == nan_code].shape[0], 
+                                        'unique_insects': spec['yolo_class'][spec['yolo_class'] != nan_code].unique().shape[0],
+                                        'annotated': False})
 
-	spec_nr_classes = spec['yolo_class'].unique().shape[0]
-	condition1 = (spec_nr_classes >= 1)
-	condition2 = True # (spec['yolo_class'].unique()[0] not in [nan_code, np.nan])
-	condition3 = (spec['yolo_class'].isnull().sum() != spec['yolo_class'].shape[0])
+    # finding the annotated plates - i.e the ones that don't have all nans in 'class'
+    if condition1 and condition2 and condition3:
+        print(f'\nFound annotated data for plate: {condition1 and condition2} ----> Copying plate')
+        annotated_plates.append(platename)
+        print(f"Platename: {platename.split('/')[-1]}")
+        spec['pname'] = pname
+        # Making extracted boxes squares (to avoid distortions in future resizing)
+        spec['width'] = 150
+        spec['height'] = 150
 
-	df_stats.loc[pname] = pd.Series({'nr_nans': spec[spec['yolo_class'] == nan_code].shape[0], 
-										'unique_insects': spec['yolo_class'][spec['yolo_class'] != nan_code].unique().shape[0],
-										'annotated': False})
+        # Creating specifications according to 'YOLO' format
+        spec['yolo_class'].fillna(0, inplace=True)
+        spec['yolo_class'] = spec['yolo_class'].astype(int)
+        spec['yolo_x'] = np.abs(spec['Bounding Rect Right.1'] - np.abs(spec['Bounding Rect Left.1'] - spec['Bounding Rect Right.1']) /2) / W
+        spec['yolo_y'] = np.abs(spec['Bounding Rect Bottom.1'] - np.abs(spec['Bounding Rect Top.1'] - spec['Bounding Rect Bottom.1']) /2) / H
+        spec['yolo_width'] = pd.concat([spec['width'], spec['height']], axis=1).max(axis=1) / W 
+        spec['yolo_height'] = pd.concat([spec['width'], spec['height']], axis=1).max(axis=1) / H
 
-	# finding the annotated plates - i.e the ones that don't have all nans in 'class'
-	if condition1 and condition2 and condition3:
-		print(f'\nFound annotated data: {condition1 and condition2} ----> COPYING IT')
-		annotated_plates.append(platename)
-		print(platename)
-		spec['pname'] = pname
+        ann_full_new = os.path.join( path_annotations , f"{pname}.txt" )
+        img_full_new = os.path.join( path_images , pname ) + '.jpg'
 
-		spec['yolo_class'].fillna(0, inplace=True)
-		spec['yolo_class'] = spec['yolo_class'].astype(int)
-		spec['yolo_x'] = np.abs(spec['Bounding Rect Right.1'] - np.abs(spec['Bounding Rect Left.1'] - spec['Bounding Rect Right.1']) /2) / W
-		spec['yolo_y'] = np.abs(spec['Bounding Rect Bottom.1'] - np.abs(spec['Bounding Rect Top.1'] - spec['Bounding Rect Bottom.1']) /2) / H
-		spec['width'] = 150#np.abs(spec['Bounding Rect Left.1'] - spec['Bounding Rect Right.1']) + extra_pixels
-		spec['height'] = 150#np.abs(spec['Bounding Rect Top.1'] - spec['Bounding Rect Bottom.1']) + extra_pixels
+        # SAVING IMAGES
+        if not os.path.isfile( img_full_new ):
+            cv2.imwrite(img_full_new, plate_img)
+        # SAVING ANNOTATIONS
+        if not len(spec) and not os.path.isfile( ann_full_new ):
+            print('Empty file', ann_full_new)
+            break
+        else:#if not os.path.isfile( ann_full_new ):
+            spec[['yolo_class','yolo_x','yolo_y','yolo_width','yolo_height']].to_csv(ann_full_new, sep=' ', index=False, header=False)
 
-		# Making extracted boxes squares (to avoid distortions in future resizing)
-		spec['yolo_width'] = pd.concat([spec['width'], spec['height']], axis=1).max(axis=1) / W 
-		spec['yolo_height'] = pd.concat([spec['width'], spec['height']], axis=1).max(axis=1) / H
+        df_stats.loc[pname] = pd.Series({'nr_nans': spec[spec['yolo_class'] == nan_code].shape[0], 
+                                            'unique_insects': spec['yolo_class'][spec['yolo_class'] != nan_code].unique().shape[0],
+                                            'annotated': True})
 
+        all_specs.append(spec)
+        if save_extractions:
+            save_insect_crops(spec, path_crops_export, plate_img)
 
-		ann_full_new = os.path.join( path_annotations , f"{pname}.txt" )
-		img_full_new = os.path.join( path_images , pname ) + '.jpg'
-
-		# SAVING IMAGES
-		if not os.path.isfile( img_full_new ):
-			print(f"Copying {pname}")
-			cv2.imwrite(img_full_new, plate_img)
-		# SAVING ANNOTATIONS
-		if not len(spec) and not os.path.isfile( ann_full_new ):
-			print('Empty file', ann_full_new)
-			break
-		else:#if not os.path.isfile( ann_full_new ):
-			spec[['yolo_class','yolo_x','yolo_y','yolo_width','yolo_height']].to_csv(ann_full_new, sep=' ', index=False, header=False)
-
-		df_stats.loc[pname] = pd.Series({'nr_nans': spec[spec['yolo_class'] == nan_code].shape[0], 
-											'unique_insects': spec['yolo_class'][spec['yolo_class'] != nan_code].unique().shape[0],
-											'annotated': True})
-
-		all_specs.append(spec)
-
-	else:
-		incomplete_plates.append(platename)
+    else:
+        incomplete_plates.append(platename)
 
 df_specs = pd.concat(all_specs, axis=0)
 
 # SAVING DATAFRAMES WITH STATISTICS REGARDING THE PLATES AND BOUNDING BOXES
 df_stats.to_csv(f'{created_data_path}/df_stats.csv')
 df_specs.to_csv(f'{created_data_path}/df_specs.csv')
+print(f"path images: {path_images}")
+print(f"path voc annotations: {path_voc_annotations}")
 
 if yolo_to_voc:
 	# CONVERTING LABELS FROM YOLO ANNOTATIONS (txt) TO VOC (xml)
 	os.system("python yolo_to_voc.py")
-	# EXTRACTING BOUNDING BOXES AS IMAGES
-	if extract_boxes:
-		import sys
-		sys.path.insert(0, '..')
-		from impy.ObjectDetectionDataset import ObjectDetectionDataset
-		sticky = ObjectDetectionDataset(imagesDirectory=path_images, 
-										annotationsDirectory=path_voc_annotations,
-										databaseName='sticky_plates')
-		sticky.saveBoundingBoxes(outputDirectory=path_impy_crops_export)

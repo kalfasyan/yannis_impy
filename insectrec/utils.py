@@ -30,8 +30,9 @@ def results_dir(year, week_nr=None, base_dir=None, week_folders=week_folders):
         return results_dir 
     elif year in ['2019','2020']:
         results_dir = []
-        mydirs = [os.path.join(base_dir, f) for f in natsorted(os.listdir(base_dir))]
-        for m in mydirs:
+        dir_to_look = os.path.join(base_dir, year)
+        sticky_plate_date_dirs = [os.path.join(dir_to_look, f) for f in natsorted(os.listdir(dir_to_look))]
+        for m in sticky_plate_date_dirs:
             for root,subdirs,files in os.walk(m):
                 for d in subdirs:
                     if d == 'results':
@@ -56,44 +57,55 @@ def get_labels(dict_or_df='df', base_dir=None):
     else:
         raise ValueError('Didnt specify what to return correctly!')
 
-def export_labels_2019(dict_or_df='df', base_dir=None):
+def export_labels(dict_or_df='df', years=None, created_data_dir=None):
     import os
     import glob
     import pandas as pd
     from sklearn.preprocessing import LabelEncoder
-    xlsx_files = [fname for fname in glob.iglob(base_dir + '/**/*.xlsx', recursive=True)]
-    print(f'Found these excel annotation files: {xlsx_files}')
-    wanted_columns_set = set(['name plate', 'index', 'Klasse', 'klasse'])
-    df_labeldata = []
-    for f in xlsx_files:
-        print(f'Processing annotation file: {f}')
-        sub = pd.read_excel(f)
-        if f.endswith('w00.xlsx'):
-            print(f"Skipping file: {f}")
-            continue
-        sub = sub[list(wanted_columns_set.intersection(sub.columns))]
-        sub.columns = map(str.lower, sub.columns)
-        sub.rename(columns={'name plate': 'platename', 'klasse': 'class', 'index': 'idx'}, inplace=True)
-        df_labeldata.append(sub)
-        assert sub.shape[1] == 3, 'Check excel file columns.'        
-    df = pd.concat(df_labeldata, axis=0)
-    df['class'] = df['class'].apply(lambda x: str(x).replace(" ","").lower())
-    # df['class'] = df['class'].apply(lambda x: str(x).replace("2",""))
-    # df['class'] = df['class'].apply(lambda x: str(x).replace("3",""))
-    # df['class'] = df['class'].apply(lambda x: str(x).replace("4",""))
-    
+
+    dataframes = []
+    for year in years:
+        print(f"\n-- Processing expert labels for year: {year} --\n")
+        labels_dir = f"{created_data_dir}/expert_labels/{year}"
+        if not os.path.isdir(labels_dir):
+            os.mkdir(labels_dir)
+
+        xlsx_files = [fname for fname in glob.iglob(labels_dir + '/**/*.xlsx', recursive=True)]
+        assert len(xlsx_files), "No expert labels found. (excel files provided by a Proefcentrum"
+
+        print(f'Number of excel annotation files found: {len(xlsx_files)}')
+        wanted_columns_set = set(['name plate', 'index', 'Klasse', 'klasse'])
+        df_labeldata = []
+        for f in xlsx_files:
+            print(f"Processing annotation file: {f.split('/')[-1]}")
+            sub = pd.read_excel(f)
+            if f.endswith('w00.xlsx'):
+                print(f"Skipping file: {f.split('/')[-1]}")
+                continue
+            sub = sub[list(wanted_columns_set.intersection(sub.columns))]
+            sub.columns = map(str.lower, sub.columns)
+            sub.rename(columns={'name plate': 'platename', 'klasse': 'class', 'index': 'idx'}, inplace=True)
+            df_labeldata.append(sub)
+            assert sub.shape[1] == 3, 'Check excel file columns.'        
+        sub = pd.concat(df_labeldata, axis=0)
+        sub['class'] = sub['class'].apply(lambda x: str(x).replace(" ","").lower())
+        # sub['class'] = sub['class'].apply(lambda x: str(x).replace("2",""))
+        # sub['class'] = sub['class'].apply(lambda x: str(x).replace("3",""))
+        # sub['class'] = sub['class'].apply(lambda x: str(x).replace("4",""))
+        dataframes.append(sub)
+
+    df = pd.concat(dataframes, axis=0)
     le = LabelEncoder()
     df['class_encoded'] = le.fit_transform(df['class'].tolist())
 
-    path_annotations = f'{SAVE_DIR}/annotations/'
-    if not os.path.isdir(path_annotations):
-        os.mkdir(path_annotations)
+    path_annotations = f'{created_data_dir}/annotations/'
+    assert os.path.isdir(path_annotations), "Annotations path not created."
 
     mapped = dict(zip(le.transform(le.classes_), le.classes_))
     # Saving class mapping to use as yolo annotation classes
     pd.Series(mapped).to_csv(f'{path_annotations}/classes.txt', sep=' ')
     # Saving class mapping to use when processing each plate
-    df.to_csv(f'{base_dir}/class_mapping.csv')
+    df.to_csv(f'{created_data_dir}/class_mapping.csv')
 
     return None
 
@@ -196,7 +208,7 @@ def get_dataset(dataset='./insectrec/created_data/impy_crops_export/', img_dim=6
         labels, test_size=0.2, random_state=42)
     return trainX, testX, trainY, testY, labels
 
-def train_generator(X_train, y_train, batch_size, nb_classes=6, img_dim=80):
+def train_generator(X_train, y_train, batch_size, nb_classes=9, img_dim=150):
 
     while True:
         for start in range(0, len(X_train), batch_size):
@@ -223,7 +235,7 @@ def train_generator(X_train, y_train, batch_size, nb_classes=6, img_dim=80):
             yield x_batch, y_batch
 
 
-def valid_generator(X_val, y_val, batch_size, nb_classes=6, img_dim=80):
+def valid_generator(X_val, y_val, batch_size, nb_classes=9, img_dim=150):
 
     while True:
         for start in range(0, len(X_val), batch_size):
@@ -306,3 +318,27 @@ def augment_trainset(X_train=None, y_train=None, aug_imgs_path=None, img_dim=80,
         if batch_counter >= nb_batches:
             print(f"Finished augmentation in {nb_batches} batches of {batch_size}")
             break
+
+def save_insect_crops(specifications, path_crops, plate_img):
+    import cv2
+
+    H,W,_ = plate_img.shape
+
+    for i, row in specifications.iterrows():
+        left  = int((row.yolo_x-row.yolo_width/2.)*W)
+        right = int((row.yolo_x+row.yolo_width/2.)*W)
+        top   = int((row.yolo_y-row.yolo_height/2.)*H)
+        bot   = int((row.yolo_y+row.yolo_height/2.)*H)
+
+        if(left < 0): left = 0;
+        if(right > W-1): right = W-1;
+        if(top < 0): top = 0;
+        if(bot > H-1): bot = H-1;
+
+        # print(f"left: {left}, right: {right}, top: {top}, bot: {bot}")
+        crop = plate_img[top:bot, left:right]
+
+        savepath = f"{path_crops}/{row.normal_class}/"
+        if not os.path.isdir(savepath):
+            os.makedirs(savepath)
+        cv2.imwrite(f"{savepath}/{row.pname}_{row.insect_idx}.jpg", crop)
