@@ -35,7 +35,7 @@ include_herent = True
 yolo_to_voc = True # In the end of the script, yolo annotations get converted to voc
 extract_boxes = True # Only works if above is true. Bounding boxes extracted and saved as images
 clean = True # Deleting previous data created here (i.e. except of logs and weights)
-save_extractions = False # Whether to save the extracted insect crops 
+save_extractions = True # Whether to save the extracted insect crops 
 
 if clean:
 	print(f'Cleaning directories..')
@@ -46,6 +46,7 @@ if clean:
 	os.system(f'rm -rf {path_images_augmented}*')
 	os.system(f'rm {created_data_path}/df_*')
 	os.system(f'rm {created_data_path}/class_mapping.csv')
+assert len(os.listdir(path_crops_export)) <= 0, "Wrong"
 
 # Get name data from the sticky plates (their names)
 BASE_DATA_DIR = f"{args.datadir}"
@@ -108,10 +109,6 @@ for p, platename in tqdm(enumerate(plates)):
     if 'empty' in pname:
         continue
 
-    # Reading the plate image
-    plate_img = read_plate(platename) 
-    H,W,_ = plate_img.shape
-
     # Reading the specifications of the plate
     spec = pd.read_csv(plates[p][:-4] + '.txt', sep="\t") 
     # Fetching column names (only needed once)
@@ -125,6 +122,9 @@ for p, platename in tqdm(enumerate(plates)):
 
     # ADDING YOLO AND HUMAN-READABLE ANNOTATION TO COLUMNS
     cmap = class_map[class_map['platename'] == pname].drop_duplicates(subset='idx', keep='first')
+    if not len(cmap):
+        print(f"Class mapping is empty for {platename}\nSkipping..")
+        continue
     sub_map = cmap[['idx','class_encoded']].set_index('idx')
     sub_map2 = cmap[['idx','class']].set_index('idx')
     spec['yolo_class'] = sub_map
@@ -135,8 +135,8 @@ for p, platename in tqdm(enumerate(plates)):
     spec = spec[spec.normal_class != 'vuil'] # removing "vuil" class
     spec = spec[spec.normal_class.apply(lambda x: '+' not in str(x))]
     # SELECTING WANTED CLASSES
-    wanted_classes = ['m','v','bl','c','wmv','v(cy)','bv','sw','t']
-    # ['m','v','bl','c','wmv','v(cy)']
+    wanted_classes = ['m','v','bl','c','wmv','v(cy)']
+    #['m','v','bl','c','wmv','v(cy)','bv','sw','t']
     # ['m','v','c','wmv','v(cy)','t']
     # ['m','v','bl','c','wmv','v(cy)','bv','gaasvlieg','grv','k','kever','nl','psylloidea','sp','sst','sw','t','vlieg','weg','wnv','wswl']
     spec = spec[spec.normal_class.isin(wanted_classes)]
@@ -156,6 +156,11 @@ for p, platename in tqdm(enumerate(plates)):
 
     # finding the annotated plates - i.e the ones that don't have all nans in 'class'
     if condition1 and condition2 and condition3:
+
+        # Reading the plate image
+        plate_img = read_plate(platename) 
+        H,W,_ = plate_img.shape
+
         print(f'\nFound annotated data for plate: {condition1 and condition2} ----> Copying plate')
         annotated_plates.append(platename)
         print(f"Platename: {platename.split('/')[-1]}")

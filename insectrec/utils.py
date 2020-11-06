@@ -71,7 +71,7 @@ def export_labels(dict_or_df='df', years=None, created_data_dir=None):
             os.mkdir(labels_dir)
 
         xlsx_files = [fname for fname in glob.iglob(labels_dir + '/**/*.xlsx', recursive=True)]
-        assert len(xlsx_files), "No expert labels found. (excel files provided by a Proefcentrum"
+        assert len(xlsx_files), "No expert labels found. (excel files provided by a Proefcentrum)"
 
         print(f'Number of excel annotation files found: {len(xlsx_files)}')
         wanted_columns_set = set(['name plate', 'index', 'Klasse', 'klasse'])
