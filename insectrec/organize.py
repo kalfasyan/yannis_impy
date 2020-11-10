@@ -9,7 +9,15 @@ from tqdm import tqdm
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--datadir", help="directory of sticky plate images")
-parser.add_argument('--years', nargs='+')
+parser.add_argument("--years", nargs='+')
+parser.add_argument('--clean', dest='clean', action='store_true')
+parser.add_argument('--no-clean', dest='clean', action='store_false')
+parser.add_argument('--yolo_to_voc', dest='yolo_to_voc', action='store_true', 
+                    help='In the end of the script, yolo annotations get converted to voc')
+parser.add_argument('--save_extractions', dest='save_extractions', action='store_true', 
+                    help='Whether to save the extracted insect crops ')
+
+parser.set_defaults(clean=True, yolo_to_voc=True, save_extractions=True)
 
 args = parser.parse_args()
 assert isinstance(args.datadir, str) and os.path.isdir(args.datadir), 'Provide a valid path'
@@ -31,13 +39,7 @@ for path in [created_data_path, path_annotations, path_images, path_voc_annotati
 	if not os.path.isdir(path):
 		os.mkdir(path)	
 
-include_herent = True
-yolo_to_voc = True # In the end of the script, yolo annotations get converted to voc
-extract_boxes = True # Only works if above is true. Bounding boxes extracted and saved as images
-clean = True # Deleting previous data created here (i.e. except of logs and weights)
-save_extractions = True # Whether to save the extracted insect crops 
-
-if clean:
+if args.clean:
 	print(f'Cleaning directories..')
 	clean_folder(path_annotations)
 	clean_folder(path_images)
@@ -95,11 +97,7 @@ labview_cols = ['Center of Mass X.1', 'Center of Mass Y.1', 'Bounding Rect Left.
 
 # Loop through all plates and nested loop through all insects in the plates
 for p, platename in tqdm(enumerate(plates)):
-    # Skip very early plates from herent that were imaged with old Canon 
-    if not include_herent:
-        if platename.split('/')[-1].startswith('her'):
-            print("SKIPPING HERENT PLATE")
-            continue
+    # Skip some plates that you define in bad_plates
     if platename.split('/')[-1][:-4] in bad_plates:
         print("SKIPPING BAD PLATE")
         continue
@@ -135,7 +133,8 @@ for p, platename in tqdm(enumerate(plates)):
     spec = spec[spec.normal_class != 'vuil'] # removing "vuil" class
     spec = spec[spec.normal_class.apply(lambda x: '+' not in str(x))]
     # SELECTING WANTED CLASSES
-    wanted_classes = ['m','v','bl','c','wmv','v(cy)']
+    wanted_classes = ['m','v','bl','c','wmv','v(cy)','bv','sw','t']
+    # ['m','v','bl','c','wmv','v(cy)']
     #['m','v','bl','c','wmv','v(cy)','bv','sw','t']
     # ['m','v','c','wmv','v(cy)','t']
     # ['m','v','bl','c','wmv','v(cy)','bv','gaasvlieg','grv','k','kever','nl','psylloidea','sp','sst','sw','t','vlieg','weg','wnv','wswl']
@@ -195,7 +194,7 @@ for p, platename in tqdm(enumerate(plates)):
                                             'annotated': True})
 
         all_specs.append(spec)
-        if save_extractions:
+        if args.save_extractions:
             save_insect_crops(spec, path_crops_export, plate_img)
 
     else:
@@ -209,6 +208,6 @@ df_specs.to_csv(f'{created_data_path}/df_specs.csv')
 print(f"path images: {path_images}")
 print(f"path voc annotations: {path_voc_annotations}")
 
-if yolo_to_voc:
+if args.yolo_to_voc:
 	# CONVERTING LABELS FROM YOLO ANNOTATIONS (txt) TO VOC (xml)
 	os.system("python yolo_to_voc.py")
