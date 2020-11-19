@@ -8,14 +8,15 @@ from utils import clean_folder, get_plate_names, export_labels, SAVE_DIR, read_p
 from tqdm import tqdm
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--datadir", help="directory of sticky plate images")
-parser.add_argument("--years", nargs='+')
+parser.add_argument('--datadir', help="directory of sticky plate images")
+parser.add_argument('--years', nargs='+')
 parser.add_argument('--clean', dest='clean', action='store_true')
 parser.add_argument('--no-clean', dest='clean', action='store_false')
 parser.add_argument('--yolo_to_voc', dest='yolo_to_voc', action='store_true', 
                     help='In the end of the script, yolo annotations get converted to voc')
 parser.add_argument('--save_extractions', dest='save_extractions', action='store_true', 
                     help='Whether to save the extracted insect crops ')
+parser.add_argument('--nb_classes', type=int, choices=[3,6,9,21], default=6)
 
 parser.set_defaults(clean=True, yolo_to_voc=True, save_extractions=True)
 
@@ -95,6 +96,23 @@ labview_cols = ['Center of Mass X.1', 'Center of Mass Y.1', 'Bounding Rect Left.
        'Compactness Factor.1', 'Heywood Circularity Factor.1', 'Type Factor.1',
        'R', 'G', 'B']
 
+# Defining wanted classes
+if args.nb_classes == 3: # using only the Fly classes
+    wanted_classes = ['v', 'wmv', 'v(cy)']
+elif args.nb_classes == 6:
+    wanted_classes = ['m','v','bl','c','wmv','v(cy)']
+elif args.nb_classes == 9:
+    wanted_classes = ['m','v','bl','c','wmv','v(cy)','bv','sw','t']
+elif args.nb_classes == 21:
+    wanted_classes = ['m','v','bl','c','wmv','v(cy)','bv','gaasvlieg',
+                    'grv','k','kever','nl','psylloidea','sp','sst','sw',
+                    't','vlieg','weg','wnv','wswl']
+else:
+    raise ValueError(f"Number of classes not accepted: {args.nb_classes} ")
+#['m','v','bl','c','wmv','v(cy)','bv','sw','t']
+# ['m','v','bl','c','wmv','v(cy)','bv','gaasvlieg','grv','k','kever','nl','psylloidea','sp','sst','sw','t','vlieg','weg','wnv','wswl']
+print(f"\nInsect classes selected: {wanted_classes}\n")
+
 # Loop through all plates and nested loop through all insects in the plates
 for p, platename in tqdm(enumerate(plates)):
     # Skip some plates that you define in bad_plates
@@ -132,12 +150,8 @@ for p, platename in tqdm(enumerate(plates)):
     spec = spec[spec.normal_class != 'st'] # removing "stuk" class
     spec = spec[spec.normal_class != 'vuil'] # removing "vuil" class
     spec = spec[spec.normal_class.apply(lambda x: '+' not in str(x))]
+
     # SELECTING WANTED CLASSES
-    wanted_classes = ['m','v','bl','c','wmv','v(cy)','bv','sw','t']
-    # ['m','v','bl','c','wmv','v(cy)']
-    #['m','v','bl','c','wmv','v(cy)','bv','sw','t']
-    # ['m','v','c','wmv','v(cy)','t']
-    # ['m','v','bl','c','wmv','v(cy)','bv','gaasvlieg','grv','k','kever','nl','psylloidea','sp','sst','sw','t','vlieg','weg','wnv','wswl']
     spec = spec[spec.normal_class.isin(wanted_classes)]
 
     # Replacing commas from labview columns with dots
@@ -164,6 +178,7 @@ for p, platename in tqdm(enumerate(plates)):
         annotated_plates.append(platename)
         print(f"Platename: {platename.split('/')[-1]}")
         spec['pname'] = pname
+        spec['year'] = platename.split('/')[len(BASE_DATA_DIR.split('/'))]  
         # Making extracted boxes squares (to avoid distortions in future resizing)
         spec['width'] = 150
         spec['height'] = 150

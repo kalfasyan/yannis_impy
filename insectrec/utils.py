@@ -261,17 +261,37 @@ def valid_generator(X_val, y_val, batch_size, nb_classes=9, img_dim=150):
 
             yield x_batch, y_batch
 
-def augment_trainset(X_train=None, y_train=None, aug_imgs_path=None, img_dim=80, nb_batches=100, batch_size=512):
+def get_labelencoder_mapping(le):
+    '''
+    Return a dict mapping labels to their integer values
+    from an SKlearn LabelEncoder
+    le = a fitted SKlearn LabelEncoder
+    '''
+    res = {}
+    for cl in le.classes_:
+        res.update({cl:le.transform([cl])[0]})
+
+    return res
+
+def augment_trainset(df_train=None,
+                    augment_classes=[],
+                    aug_imgs_path=None, img_dim=80, 
+                    nb_batches=100, batch_size=512):
     from sklearn.preprocessing import LabelEncoder
     from sklearn.model_selection import train_test_split
     from tensorflow.keras.preprocessing.image import ImageDataGenerator
     import cv2
     import pandas as pd
 
+    if len(augment_classes):
+        print(f"df_train before selecting classes: {df_train.shape}")
+        df_train = df_train[df_train['y_train'].isin(augment_classes)]
+        print(f"df_train after selecting classes: {df_train.shape}")
+
     print(" Reading image data and assigning labels...")
     data = []
 
-    imagePaths = X_train.tolist()
+    imagePaths = df_train.X_train.tolist()
     np.random.seed(42)
     np.random.shuffle(imagePaths)
     labels = []
@@ -324,7 +344,7 @@ def save_insect_crops(specifications, path_crops, plate_img):
 
     H,W,_ = plate_img.shape
 
-    for i, row in specifications.iterrows():
+    for _, row in specifications.iterrows():
         left  = int((row.yolo_x-row.yolo_width/2.)*W)
         right = int((row.yolo_x+row.yolo_width/2.)*W)
         top   = int((row.yolo_y-row.yolo_height/2.)*H)
@@ -341,4 +361,11 @@ def save_insect_crops(specifications, path_crops, plate_img):
         savepath = f"{path_crops}/{row.normal_class}/"
         if not os.path.isdir(savepath):
             os.makedirs(savepath)
-        cv2.imwrite(f"{savepath}/{row.pname}_{row.insect_idx}.jpg", crop)
+        cv2.imwrite(f"{savepath}/{row.year}_{row.pname}_{row.insect_idx}.jpg", crop)
+
+def to_weeknr(date=''):
+    """
+    Transforms a date strings YYYYMMDD to the corresponding week nr (e.g. 20200713 becomes w29)
+    """
+    week_nr = pd.to_datetime(date).to_pydatetime().isocalendar()[1]
+    return f"w{week_nr}"
