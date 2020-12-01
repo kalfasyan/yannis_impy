@@ -70,8 +70,8 @@ print(f"Number of ALL plates: {len(plates)}")
 
 # Create a dataframe to save some statistics about the plates
 # such as the number of nans and number of unique insects per plate
-short_platenames = pd.Series(plates).apply(lambda x: x.split("/")[-1][:-4])
-df_stats = pd.DataFrame(columns=['nr_nans','unique_insects','annotated'], index=short_platenames)
+short_platepaths = pd.Series(plates).apply(lambda x: x.split("/")[-1][:-4])
+df_stats = pd.DataFrame(columns=['nr_nans','unique_insects','annotated'], index=short_platepaths)
 all_specs = []
 
 annotated_plates, incomplete_plates = [], []
@@ -84,17 +84,21 @@ print(f"Total number of plates : {len(plates)}")
 all_dfs = []
 
 # Loop through all plates and nested loop through all insects in the plates
-for p, platename in tqdm(enumerate(plates)):
+for p, platepath in tqdm(enumerate(plates)):
+
+    # Defining the platepath
+    pname = platepath.split('/')[-1][:-4] 
+    print(pname)
+
     # Skip some plates that you define in bad_plates
-    if platename.split('/')[-1][:-4] in bad_plates:
+    if pname in bad_plates:
         print("SKIPPING BAD PLATE")
         continue
 
-    # Defining the platename
-    pname = platename.split('/')[-1][:-4] 
-    print(pname)
+    # if pname != "herent_w35_4-30_4056x3040":
+    #     continue
 
-    resimg, df = overlay_image_nms(platename, plot_orig=True)
+    resimg, df = overlay_image_nms(platepath, created_data_path, nms_threshold=0.08, plot_orig=True)
     all_dfs.append(df)
 
 
