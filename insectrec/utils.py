@@ -63,6 +63,15 @@ def export_labels(dict_or_df='df', years=None, created_data_dir=None):
     import pandas as pd
     from sklearn.preprocessing import LabelEncoder
 
+    messed_up_index_plates = ["beauvech_w38_A_F10_51 mm_ISO160_1-15 s",
+                            "beauvech_w39_A_F10_51 mm_ISO160_1-15 s",
+                            "beauvech_w39_C_F10_51 mm_ISO160_1-15 s",
+                            "brainelal_w38_A_F10_51 mm_ISO160_1-15 s",
+                            "brainelal_w38_C_F10_51 mm_ISO160_1-15 s",
+                            "brainelal_w38_B_F10_51 mm_ISO160_1-15 s",
+                            "brainelal_w39_A_F10_51 mm_ISO160_1-15 s",
+                            "brainelal_w39_B_F10_51 mm_ISO160_1-15 s",]
+
     dataframes = []
     for year in years:
         print(f"\n-- Processing expert labels for year: {year} --\n")
@@ -78,15 +87,36 @@ def export_labels(dict_or_df='df', years=None, created_data_dir=None):
         df_labeldata = []
         for f in xlsx_files:
             print(f"Processing annotation file: {f.split('/')[-1]}")
-            sub = pd.read_excel(f)
             if f.endswith('w00.xlsx'):
                 print(f"Skipping file: {f.split('/')[-1]}")
                 continue
-            sub = sub[list(wanted_columns_set.intersection(sub.columns))]
-            sub.columns = map(str.lower, sub.columns)
-            sub.rename(columns={'name plate': 'platename', 'klasse': 'class', 'index': 'idx'}, inplace=True)
-            df_labeldata.append(sub)
-            assert sub.shape[1] == 3, 'Check excel file columns.'        
+            
+            sub = pd.read_excel(f)
+            assert sub.iloc[:,1].name == 'index'
+            assert sub.iloc[:,1].iloc[0] == 0., 'Check if excel file index starts with 1 instead of 0.'        
+            df = sub[list(wanted_columns_set.intersection(sub.columns))]
+            assert len(df.columns) == 3, 'Check excel file columns.'
+            df.columns = map(str.lower, df.columns)
+            df.rename(columns={'name plate': 'platename', 'klasse': 'class', 'index': 'idx'}, inplace=True)
+            
+            problematic_inds = []
+            fixed_subdfs = []
+            for i,q in df.groupby('platename'):
+
+                if q.idx.iloc[0] != 0:
+                    print(f"{q.idx.iloc[0]} found instead of 0 in first index of plate. Discarding it")
+                    problematic_inds.append(q.iloc[0].name)
+
+                if i in messed_up_index_plates:
+                #    q.idx = q.idx + 1.
+                   q['class'] = q['class'].shift(+1)
+                fixed_subdfs.append(q)
+
+            df = pd.concat(fixed_subdfs, axis=0)
+            df.drop(problematic_inds, axis=0, inplace=True)
+            assert df.idx.isna().sum() == 0
+            df_labeldata.append(df)
+
         sub = pd.concat(df_labeldata, axis=0)
         sub['class'] = sub['class'].apply(lambda x: str(x).replace(" ","").lower())
         # sub['class'] = sub['class'].apply(lambda x: str(x).replace("2",""))

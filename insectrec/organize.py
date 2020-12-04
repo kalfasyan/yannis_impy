@@ -81,11 +81,10 @@ all_specs = []
 annotated_plates, incomplete_plates = [], []
 
 # Plates to ignore, since they were found to contain bad data (blurred/misclassified etc.)
-bad_plates = []
-# "['brainlal_w27_A_58_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160', 
-# 			'brainelal_8719_B_81_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160',
-# 			'kampen_w25_C_72_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160',
-# 			'kampen_w25_B_71_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160']"
+bad_plates = ["beauvech_w38_B_F10_51 mm_ISO160_1-15 s",
+            "brainlal_w27_A_58_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160",
+            "kampen_w36_B_F10_51 mm_ISO160_1-15 s",
+            "brainelal_8719_B_81_160_1-15 s_11_48 mm_Manual_Manual_6240 x 4160"]
 
 labview_cols = ['Center of Mass X.1', 'Center of Mass Y.1', 'Bounding Rect Left.1',
        'Bounding Rect Top.1', 'Bounding Rect Right.1',
@@ -115,14 +114,14 @@ print(f"\nInsect classes selected: {wanted_classes}\n")
 
 # Loop through all plates and nested loop through all insects in the plates
 for p, platename in tqdm(enumerate(plates)):
-    # Skip some plates that you define in bad_plates
-    if platename.split('/')[-1][:-4] in bad_plates:
-        print("SKIPPING BAD PLATE")
-        continue
-
     # Defining the platename
     pname = platename.split('/')[-1][:-4] 
     if 'empty' in pname:
+        continue
+
+    # Skip some plates that you define in bad_plates
+    if pname in bad_plates:
+        print(f"\nSKIPPING BAD PLATE: {pname}")
         continue
 
     # Reading the specifications of the plate
