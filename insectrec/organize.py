@@ -153,9 +153,11 @@ for p, platename in tqdm(enumerate(plates)):
     # SELECTING WANTED CLASSES
     spec = spec[spec.normal_class.isin(wanted_classes)]
 
-    # Replacing commas from labview columns with dots
+    # Replacing commas from labview columns with dots 
+    # to process them as floats
     for col in labview_cols:
-        spec[col] = spec[col].str.replace(",",".").astype(float)
+        if spec[col].dtype != 'float64':
+            spec[col] = spec[col].str.replace(",",".").astype(float)
 
     spec_nr_classes = spec['yolo_class'].unique().shape[0]
     condition1 = (spec_nr_classes >= 0)
