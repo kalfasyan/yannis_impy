@@ -114,10 +114,12 @@ print(f"\nInsect classes selected: {wanted_classes}\n")
 
 # Loop through all plates and nested loop through all insects in the plates
 for p, platename in tqdm(enumerate(plates)):
-    # Defining the platename
+    # Defining the plate name, week and year
     pname = platename.split('/')[-1][:-4] 
     if 'empty' in pname:
         continue
+    pweek = pname.split('_')[1]
+    pyear = platename.split('/')[len(BASE_DATA_DIR.split('/'))]
 
     # Skip some plates that you define in bad_plates
     if pname in bad_plates:
@@ -167,19 +169,20 @@ for p, platename in tqdm(enumerate(plates)):
     df_stats.loc[pname] = pd.Series({'nr_nans': spec[spec['yolo_class'] == nan_code].shape[0], 
                                         'unique_insects': spec['yolo_class'][spec['yolo_class'] != nan_code].unique().shape[0],
                                         'annotated': False})
-
+    print(condition1, condition2, condition3)
     # finding the annotated plates - i.e the ones that don't have all nans in 'class'
     if condition1 and condition2 and condition3:
 
         # Reading the plate image
         plate_img = read_plate(platename) 
         H,W,_ = plate_img.shape
+        print(f"img shape: {plate_img.shape}")
 
         print(f'\nFound annotated data for plate: {condition1 and condition2} ----> Copying plate')
         annotated_plates.append(platename)
         print(f"Platename: {platename.split('/')[-1]}")
         spec['pname'] = pname
-        spec['year'] = platename.split('/')[len(BASE_DATA_DIR.split('/'))]  
+        spec['year'] = pyear  
         # Making extracted boxes squares (to avoid distortions in future resizing)
         spec['width'] = 150
         spec['height'] = 150
@@ -198,6 +201,8 @@ for p, platename in tqdm(enumerate(plates)):
         # SAVING IMAGES
         if not os.path.isfile( img_full_new ):
             cv2.imwrite(img_full_new, plate_img)
+        else:
+            raise ValueError("IMAGE ALREADY EXISTS")
         # SAVING ANNOTATIONS
         if not len(spec) and not os.path.isfile( ann_full_new ):
             print('Empty file', ann_full_new)
